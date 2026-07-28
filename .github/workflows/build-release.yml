@@ -12,6 +12,10 @@ on:
       - main
       - master
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build:
     name: Build on ${{ matrix.os }}
