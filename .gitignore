@@ -28,9 +28,8 @@ env/
 
 # PyInstaller
 *.spec
+!youtube-music-tui.spec
 *.manifest
-*.exe
-*.app
 
 # Music Data
 .music_data/
