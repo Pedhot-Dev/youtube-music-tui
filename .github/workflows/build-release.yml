@@ -1,0 +1,92 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: youtube-music-tui-linux
+            asset_name: youtube-music-tui-linux-amd64
+          - os: macos-latest
+            artifact_name: youtube-music-tui-macos
+            asset_name: youtube-music-tui-macos-amd64
+          - os: windows-latest
+            artifact_name: youtube-music-tui-windows.exe
+            asset_name: youtube-music-tui-windows-amd64.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller youtube-music-tui.spec
+
+      - name: Rename artifact (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          mv dist/youtube-music-tui dist/${{ matrix.asset_name }}
+
+      - name: Rename artifact (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          move dist\youtube-music-tui.exe dist\${{ matrix.asset_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.asset_name }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/youtube-music-tui-linux-amd64/youtube-music-tui-linux-amd64
+            artifacts/youtube-music-tui-macos-amd64/youtube-music-tui-macos-amd64
+            artifacts/youtube-music-tui-windows-amd64.exe/youtube-music-tui-windows-amd64.exe
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
